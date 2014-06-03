@@ -42,7 +42,6 @@ float Plane::intersect(Vector pos, Vector dir)
 	Vector q = pos + dir*t;
 	if (isInside(q))
 	{
-		transformt(t, oldDir, dir);
 		return t;
 	}
     else return -1;
@@ -58,7 +57,6 @@ Vector Plane::normal(Vector pos)
 
 	normal.normalise();
 
-	
 	transformNormal(normal);
 
 	return normal;
@@ -66,11 +64,27 @@ Vector Plane::normal(Vector pos)
 
 Color Plane::getColorTex(Vector _vec)
 {
-	float x = (_vec.x + RATIO / 2.0f) / (RATIO);
-	float z = (_vec.z + RATIO / 2.0f) / (RATIO);
+	float x = (_vec.x + scaleFact.x / 2.0f) / (scaleFact.x);
+	float z = (_vec.z + scaleFact.z / 2.0f) / (scaleFact.z);
 
 
 	Vector col = texture->imgData.at((int)(z * (texture->height - 1)) * texture->width + (int)(x * (texture->width - 1)));
 
 	return Color(col.x, col.y, col.z);
+}
+
+void Plane::scale(Vector _scaleFactors)
+{
+	scaleFact.x *= _scaleFactors.x;
+	scaleFact.y *= _scaleFactors.y;
+	scaleFact.z *= _scaleFactors.z;
+
+	float xSize = 1.0f * scaleFact.x;
+	float ySize = 1.0f * scaleFact.y;
+	float zSize = 1.0f * scaleFact.z;
+
+	a = Vector(-xSize / 2.0f, 0.0f, +zSize / 2.0f);
+	b = Vector(+xSize / 2.0f, 0.0f, +zSize / 2.0f);
+	c = Vector(+xSize / 2.0f, 0.0f, -zSize / 2.0f);
+	d = Vector(-xSize / 2.0f, 0.0f, -zSize / 2.0f);
 }

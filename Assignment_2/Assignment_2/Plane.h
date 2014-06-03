@@ -9,8 +9,6 @@
 #ifndef H_PLANE
 #define H_PLANE
 
-#define RATIO 100.0f
-
 #include "Vector.h"
 #include "Object.h"
 
@@ -19,15 +17,16 @@ class Plane : public Object
 private:
     Vector a, b, c, d;      //The 4 vertices of a quad
 
+	Vector scaleFact;
+
 public:	
 	Plane(void);
 	
     Plane(Color col)
 	{
-		a = Vector(-RATIO / 2.0f, 0.0f, +RATIO / 2.0f);
-		b = Vector(+RATIO / 2.0f, 0.0f, +RATIO / 2.0f);
-		c = Vector(+RATIO / 2.0f, 0.0f, -RATIO / 2.0f);
-		d = Vector(-RATIO / 2.0f, 0.0f, -RATIO / 2.0f);
+		scaleFact = Vector(1.0f, 1.0f, 1.0f);
+
+		scale(scaleFact);
 
 		color = col;
 	};
@@ -40,6 +39,9 @@ public:
 	float intersect(Vector pos, Vector dir);
 	
 	Vector normal(Vector pos);
+
+	
+	virtual void scale(Vector _scaleFactors);
 
 };
 

@@ -12,13 +12,15 @@ private:
 	Vector corner1;
 	Vector corner2;
 
+	Vector scaleFact;
+
 public:	
     Cube(Color _col)
 	{
 		color = _col;
+		scaleFact = Vector(1.0f, 1.0f, 1.0f);
 
-		corner1 = Vector(-1.0f / 2.0f, -1.0f / 2.0f, -1.0f / 2.0f);
-		corner2 = Vector(+1.0f / 2.0f, +1.0f / 2.0f, +1.0f / 2.0f);
+		scale(Vector(1.0f, 1.0f, 1.0f));
 	};
 
 	float intersect(Vector pos, Vector dir);
@@ -26,6 +28,8 @@ public:
 	Vector normal(Vector p);
 
 	virtual Color getColorTex(Vector _vec);
+
+	virtual void scale(Vector _scaleFactors);
 
 };
 

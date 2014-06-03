@@ -3,7 +3,6 @@
 Other primitives
 
 	-	cone (1)
-	-	cylindar (1)
 	-	tetrahedron (1)
 	-	torus (2)
 
@@ -14,12 +13,10 @@ spotlight (1)
 
 refractions (1)
 
-arbitary rotations of scene objects (2)
-	-	scale
 
-3d textures (1-2)
 
-multithreading?
+3d textures (1-2) (bump mapping?)
+
 
 add in something that prints to the console the % done if it takes too long
 
@@ -34,21 +31,23 @@ Others (1 - 5 on complexity)
 
 ############### Done ###################
 Other primitives
-	-	cube (NEEDED)
+	-	cube (NEEDED) 
+	-	cylindar (1)
 camera motion
 	-	linear movement
 anti-aliasing
 	-	supersampling (varies on x and z)
 	-	adaptive
 	-	stochastic
-arbitary rotations of scene objects (2)
+arbitary rotations of scene objects (2) (Need to add scale coping for new objects)
 	-	rotation
+	-	scale
 	-	translation
 textured plane
 textured sphere (1)
 
+MultiThreading (max 4 threads, thread 1 is run on the main thread), increase by 'o', decrease by 'l'
+
 ############### Questions ###################
 	-	Shadows on the bottom of the plane
 	-	Specular reflection on cube overpowers when facing light source
-	-	After scaling the normals only look as expected up close
-	-	Shadows move when camera moves

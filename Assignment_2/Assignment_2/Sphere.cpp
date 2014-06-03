@@ -16,43 +16,22 @@
 */
 float Sphere::intersect(Vector pos, Vector dir)
 {
-	Vector oldDir = dir;
-
 	transformRay(pos, dir);
 
-    Vector vdif = pos - center;
-    float b = dir.dot(vdif);
-    float len = vdif.length();
-    float c = len*len - radius*radius;
-    float delta = b*b - c;
-   
-	if(fabs(delta) < 0.001) return -1.0; 
-    if(delta < 0.0) return -1.0;
+	float a = std::pow(dir.x, 2.0f) / std::pow(radii.x, 2.0f) + std::pow(dir.y, 2.0f) / std::pow(radii.y, 2.0f) + std::pow(dir.z, 2.0f) / std::pow(radii.z, 2.0f);
+	float b = 2.0f * (pos.x * dir.x / std::pow(radii.x, 2.0f) + pos.y * dir.y / std::pow(radii.y, 2.0f) + pos.z * dir.z / std::pow(radii.z, 2.0f));
+	float c = std::pow(pos.x, 2.0f) / std::pow(radii.x, 2.0f) + std::pow(pos.y, 2.0f) / std::pow(radii.y, 2.0f) + std::pow(pos.z, 2.0f) / std::pow(radii.z, 2.0f) - 1.0f;
 
-    float t1 = -b - sqrt(delta);
-    float t2 = -b + sqrt(delta);
-    if(fabs(t1) < 0.001 )
-    {
-		if (t2 > 0)
-		{
-			//~ modify t
-			return t2;
-		}
-		else
-		{
-			t1 = -1.0;
-		}
-    }
-	if (fabs(t2) < 0.001)
+
+	if (b * b  - 4.0f * a * c < 0.0f)
 	{
-		t2 = -1.0;
+		return -1.0f;
 	}
 
-	float t = (t1 < t2)? t1: t2;
+	float t1 = (-b + sqrtf(b * b  - 4.0f * a * c)) / (2.0f * a);
+	float t2 = (-b - sqrtf(b * b  - 4.0f * a * c)) / (2.0f * a);
 
-	//~ modify t
-
-	return t;
+	return t1 > 0.0f ? (t2 > 0.0f ? (t1 < t2 ? t1 : t2) : -1.0f) : -1.0f;
 }
 
 /**
@@ -71,8 +50,6 @@ Vector Sphere::normal(Vector p)
 
 Color Sphere::getColorTex(Vector _vec)
 {
-	//return color;
-
 	transformRay(_vec, Vector());
 
 	Vector vn = Vector(0.0, 1.0, 0.0);
@@ -121,4 +98,19 @@ Color Sphere::getColorTex(Vector _vec)
 	Vector col = texture->imgData.at((int)(v) * texture->width + (int)(u));
 
 	return Color(col.x, col.y, col.z);
+}
+
+void Sphere::scale(Vector _scaleFactors)
+{
+	scaleFact.x *= _scaleFactors.x;
+	scaleFact.y *= _scaleFactors.y;
+	scaleFact.z *= _scaleFactors.z;
+
+	float xSize = 1.0f * scaleFact.x;
+	float ySize = 1.0f * scaleFact.y;
+	float zSize = 1.0f * scaleFact.z;
+
+	radii.x = xSize;
+	radii.y = ySize;
+	radii.z = zSize;
 }

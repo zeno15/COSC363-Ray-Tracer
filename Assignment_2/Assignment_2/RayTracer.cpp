@@ -8,21 +8,21 @@
 #include <vector>
 #include <cstdlib>
 #include <time.h>
+#include <thread>
 #include "Vector.h"
 #include "Sphere.h"
 #include "Plane.h"
 #include "Cube.h"
+#include "Cylindar.h"
 #include "Color.h"
 #include "Object.h"
 #include <GL/glut.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include "ParticipatingMediaSystem.hpp"
 #include "loadTGA.h"
 
 #include "RayTracer.hpp"
 
-using namespace std;
 
 const float WIDTH = 40.0f;  
 const float HEIGHT = 40.0f;
@@ -34,7 +34,6 @@ const float XMAX =  WIDTH * 0.5f;
 const float YMIN = -HEIGHT * 0.5f;
 const float YMAX =  HEIGHT * 0.5f;
 
-#define REFLECTIVE_INDEX	-5			//~ Change to the index in the sceneobject vector of the reflective object
 #define TO_RADIANS			(3.14159265f / 180.0f)
 #define ANGLE_CHANGE		5.0f
 
@@ -43,15 +42,26 @@ const float YMAX =  HEIGHT * 0.5f;
 #define ADAPTIVE_SAMPLING	2
 #define STOCHASTIC_SAMPLING 3
 
-vector<Object*> sceneObjects;
-vector<Object*> extraObjects;
+#define MAX_THREADS			4
 
-vector<Vector> lights;
+std::vector<Object*> sceneObjectsThread1;
+std::vector<Object*> sceneObjectsThread2;
+std::vector<Object*> sceneObjectsThread3;
+std::vector<Object*> sceneObjectsThread4;
+std::vector<Object*> extraObjects;
+
+std::vector<Vector> lights;
+
+std::vector<pixelDraw>	pixelsToDrawThread1;
+std::vector<pixelDraw>	pixelsToDrawThread2;
+std::vector<pixelDraw>	pixelsToDrawThread3;
+std::vector<pixelDraw>	pixelsToDrawThread4;
 
 Vector eyePosition = Vector(0.0f, 0.0f, 80.0f);
 
 tex texture1;
 tex texture2;
+tex texture3;
 
 
 bool showFog = false;
@@ -63,6 +73,8 @@ unsigned int samplingType = 0;
 float colorCompareThreshold = 0.05f;
 
 int width, height;
+
+int numThreads = 1;
 
 char *texdata;
 
@@ -104,7 +116,7 @@ PointBundle closestPt(Vector pos, Vector dir, std::vector<Object*> &_sceneObject
 * procedure.
 */
 
-Color trace(Vector pos, Vector dir, int step, float &_t, std::vector<Object*> &_sceneObjects)
+Color trace(Vector pos, Vector dir, int step, float &_t, std::vector<Object*> &_sceneObjects, float _currentRefractiveIndex)
 {
     PointBundle q = closestPt(pos, dir, _sceneObjects);
 
@@ -204,6 +216,8 @@ Color trace(Vector pos, Vector dir, int step, float &_t, std::vector<Object*> &_
 
 			if (shadow.dist > q.point.dist(lights.at(i))) continue;
 
+			if (_sceneObjects.at(shadow.index)->getRefractive()) continue; //~ Assuming refractive objects dont leave shadows
+
 			col = col.phongLight(BACKGROUND_COL, 0.0f, 0.0f);
 		}
 	}
@@ -219,9 +233,36 @@ Color trace(Vector pos, Vector dir, int step, float &_t, std::vector<Object*> &_
 
 		float t = 0.0f;
 
-		Color reflectionColor = trace(q.point, reflectionVector, step + 1, t, _sceneObjects);
+		Color reflectionColor = trace(q.point, reflectionVector, step + 1, t, _sceneObjects, _currentRefractiveIndex);
 
 		colorSum.combineColor(reflectionColor, 0.8f);
+	}
+	else if (_sceneObjects.at(q.index)->getRefractive() && step < MAX_STEPS)
+	{
+		float coeffOfTransmission = 0.8f;
+
+		float refractionRatio = _currentRefractiveIndex / _currentRefractiveIndex;
+
+		float cosRefractionAngle = sqrtf(1.0f - std::pow(refractionRatio, 2.0f) * (1.0f - std::pow(dir.dot(n), 2.0f)));
+
+		Vector refractionVector = dir - n * (refractionRatio * dir.dot(n) + cosRefractionAngle) * refractionRatio;
+
+		float t = 0.0f;
+
+		float refractiveIndexToUse = 0.0f;
+
+		if (n.dot(dir) > 0.0f)
+		{
+			refractiveIndexToUse = 1.0f;
+		}
+		else
+		{
+			refractiveIndexToUse = _currentRefractiveIndex;
+		}
+
+		Color refractionColor = trace(q.point, refractionVector, step + 1, t, _sceneObjects, refractiveIndexToUse);
+
+		colorSum.combineColor(refractionColor, coeffOfTransmission);
 	}
 
 	
@@ -229,7 +270,7 @@ Color trace(Vector pos, Vector dir, int step, float &_t, std::vector<Object*> &_
 	return colorSum;
 }
 
-void adaptiveSample(float _cx, float _cy, float _sizeX, float _sizeY, int step)
+void adaptiveSample(float _cx, float _cy, float _sizeX, float _sizeY, int step, std::vector<pixelDraw> &_outputVector, std::vector<Object *> _sceneObjects)
 {
 	float t = 0.0f;
 	bool valid = true;
@@ -237,24 +278,24 @@ void adaptiveSample(float _cx, float _cy, float _sizeX, float _sizeY, int step)
 	Vector dir = Vector(_cx, _cy, -EDIST);
 	dir.normalise();
 
-	Color col = trace(eyePosition, dir, 1, t, sceneObjects);
+	Color col = trace(eyePosition, dir, 1, t, _sceneObjects, 1.0f);
 
 
 	dir = Vector(_cx - _sizeX / 2.0f, _cy - _sizeY / 2.0f, -EDIST);
 	dir.normalise();
-	Color tl = trace(eyePosition, dir, 1, t, sceneObjects);
+	Color tl = trace(eyePosition, dir, 1, t, _sceneObjects, 1.0f);
 
 	dir = Vector(_cx + _sizeX / 2.0f, _cy - _sizeY / 2.0f, -EDIST);
 	dir.normalise();
-	Color tr = trace(eyePosition, dir, 1, t, sceneObjects);
+	Color tr = trace(eyePosition, dir, 1, t, _sceneObjects, 1.0f);
 
 	dir = Vector(_cx + _sizeX / 2.0f, _cy + _sizeY / 2.0f, -EDIST);
 	dir.normalise();
-	Color br = trace(eyePosition, dir, 1, t, sceneObjects);
+	Color br = trace(eyePosition, dir, 1, t, _sceneObjects, 1.0f);
 
 	dir = Vector(_cx - _sizeX / 2.0f, _cy + _sizeY / 2.0f, -EDIST);
 	dir.normalise();
-	Color bl = trace(eyePosition, dir, 1, t, sceneObjects);
+	Color bl = trace(eyePosition, dir, 1, t, _sceneObjects, 1.0f);
 
 	if (tl.compare(tr, colorCompareThreshold))
 	{
@@ -270,20 +311,21 @@ void adaptiveSample(float _cx, float _cy, float _sizeX, float _sizeY, int step)
 	}
 
 
-	if (valid || step > (int)numsamples)
+	if (valid || step >= (int)numsamples)
 	{
-		glColor3f(col.r, col.g, col.b);
-		glVertex2f(_cx - _sizeX / 2.0f, _cy - _sizeY / 2.0f);
-		glVertex2f(_cx + _sizeX / 2.0f, _cy - _sizeY / 2.0f);
-		glVertex2f(_cx + _sizeX / 2.0f, _cy + _sizeY / 2.0f);
-		glVertex2f(_cx - _sizeX / 2.0f, _cy + _sizeY / 2.0f);
+		_outputVector.push_back(pixelDraw());
+		_outputVector.back()._colour = glm::vec3(col.r, col.g, col.b);
+		_outputVector.back()._vertex1 = glm::vec2(_cx - _sizeX / 2.0f, _cy - _sizeY / 2.0f);
+		_outputVector.back()._vertex2 = glm::vec2(_cx + _sizeX / 2.0f, _cy - _sizeY / 2.0f);
+		_outputVector.back()._vertex3 = glm::vec2(_cx + _sizeX / 2.0f, _cy + _sizeY / 2.0f);
+		_outputVector.back()._vertex4 = glm::vec2(_cx - _sizeX / 2.0f, _cy + _sizeY / 2.0f);
 	}
 	else
 	{
-		adaptiveSample(_cx - _sizeX / 4.0f, _cy - _sizeY / 4.0f, _sizeX / 2.0f, _sizeY / 2.0f, step + 1);
-		adaptiveSample(_cx + _sizeX / 4.0f, _cy - _sizeY / 4.0f, _sizeX / 2.0f, _sizeY / 2.0f, step + 1);
-		adaptiveSample(_cx + _sizeX / 4.0f, _cy + _sizeY / 4.0f, _sizeX / 2.0f, _sizeY / 2.0f, step + 1);
-		adaptiveSample(_cx - _sizeX / 4.0f, _cy + _sizeY / 4.0f, _sizeX / 2.0f, _sizeY / 2.0f, step + 1);
+		adaptiveSample(_cx - _sizeX / 4.0f, _cy - _sizeY / 4.0f, _sizeX / 2.0f, _sizeY / 2.0f, step + 1, _outputVector, _sceneObjects);
+		adaptiveSample(_cx + _sizeX / 4.0f, _cy - _sizeY / 4.0f, _sizeX / 2.0f, _sizeY / 2.0f, step + 1, _outputVector, _sceneObjects);
+		adaptiveSample(_cx + _sizeX / 4.0f, _cy + _sizeY / 4.0f, _sizeX / 2.0f, _sizeY / 2.0f, step + 1, _outputVector, _sceneObjects);
+		adaptiveSample(_cx - _sizeX / 4.0f, _cy + _sizeY / 4.0f, _sizeX / 2.0f, _sizeY / 2.0f, step + 1, _outputVector, _sceneObjects);
 	}
 }
 
@@ -296,8 +338,6 @@ void display()
 	int widthInPixels = (int)(WIDTH * PPU);
 	int heightInPixels = (int)(HEIGHT * PPU);
 	float pixelSize = 1.0f/PPU;
-	float halfPixelSize = pixelSize/2.0f;
-	float x1, y1, xc, yc;
 	
 	if (samplingType == NORMAL_SAMPLING)
 	{
@@ -307,91 +347,163 @@ void display()
 
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	pixelsToDrawThread1.clear();
+	pixelsToDrawThread2.clear();
+	pixelsToDrawThread3.clear();
+	pixelsToDrawThread4.clear();
+	
+	if (numThreads <= 0)
+	{
+		numThreads = 1;
+	}
+	if (numThreads > MAX_THREADS)
+	{
+		numThreads = MAX_THREADS;
+	}
+
+	int threadWidth = static_cast<int>(static_cast<float>(widthInPixels) /  static_cast<float>(numThreads));
+
+	clock_t startTime = clock();
+
+	std::thread t2(rayTrace, std::ref(pixelsToDrawThread2), std::ref(sceneObjectsThread2), threadWidth * 1, 0, threadWidth * 2, heightInPixels, pixelSize, samplingType, numsamples, (numThreads > 1));
+
+	std::thread t3(rayTrace, std::ref(pixelsToDrawThread3), std::ref(sceneObjectsThread3), threadWidth * 2, 0, threadWidth * 3 + (numThreads == 3 ? PPU : 0), heightInPixels, pixelSize, samplingType, numsamples, (numThreads > 2));
+
+	std::thread t4(rayTrace, std::ref(pixelsToDrawThread4), std::ref(sceneObjectsThread4), threadWidth * 3, 0, threadWidth * 4, heightInPixels, pixelSize, samplingType, numsamples, (numThreads > 3));
+	
+	rayTrace(pixelsToDrawThread1, sceneObjectsThread1, 0, 0, threadWidth + widthInPixels - numThreads * threadWidth, heightInPixels, pixelSize, samplingType, numsamples, (numThreads > 0));
+	
+	t2.join();
+	t3.join();
+	t4.join();
+
 	glBegin(GL_QUADS);  //Each pixel is a quad.
+
+	for (unsigned int i = 0; i < pixelsToDrawThread1.size(); i += 1)
+	{
+
+
+		glColor3f(pixelsToDrawThread1.at(i)._colour.r, pixelsToDrawThread1.at(i)._colour.g, pixelsToDrawThread1.at(i)._colour.b);
+		glVertex2f(pixelsToDrawThread1.at(i)._vertex1.x, pixelsToDrawThread1.at(i)._vertex1.y);
+		glVertex2f(pixelsToDrawThread1.at(i)._vertex2.x, pixelsToDrawThread1.at(i)._vertex2.y);
+		glVertex2f(pixelsToDrawThread1.at(i)._vertex3.x, pixelsToDrawThread1.at(i)._vertex3.y);
+		glVertex2f(pixelsToDrawThread1.at(i)._vertex4.x, pixelsToDrawThread1.at(i)._vertex4.y);
+	}
+	for (unsigned int i = 0; i < pixelsToDrawThread2.size(); i += 1)
+	{
+
+
+		glColor3f(pixelsToDrawThread2.at(i)._colour.r, pixelsToDrawThread2.at(i)._colour.g, pixelsToDrawThread2.at(i)._colour.b);
+		glVertex2f(pixelsToDrawThread2.at(i)._vertex1.x, pixelsToDrawThread2.at(i)._vertex1.y);
+		glVertex2f(pixelsToDrawThread2.at(i)._vertex2.x, pixelsToDrawThread2.at(i)._vertex2.y);
+		glVertex2f(pixelsToDrawThread2.at(i)._vertex3.x, pixelsToDrawThread2.at(i)._vertex3.y);
+		glVertex2f(pixelsToDrawThread2.at(i)._vertex4.x, pixelsToDrawThread2.at(i)._vertex4.y);
+	}
+	for (unsigned int i = 0; i < pixelsToDrawThread3.size(); i += 1)
+	{
+
+
+		glColor3f(pixelsToDrawThread3.at(i)._colour.r, pixelsToDrawThread3.at(i)._colour.g, pixelsToDrawThread3.at(i)._colour.b);
+		glVertex2f(pixelsToDrawThread3.at(i)._vertex1.x, pixelsToDrawThread3.at(i)._vertex1.y);
+		glVertex2f(pixelsToDrawThread3.at(i)._vertex2.x, pixelsToDrawThread3.at(i)._vertex2.y);
+		glVertex2f(pixelsToDrawThread3.at(i)._vertex3.x, pixelsToDrawThread3.at(i)._vertex3.y);
+		glVertex2f(pixelsToDrawThread3.at(i)._vertex4.x, pixelsToDrawThread3.at(i)._vertex4.y);
+	}
+	for (unsigned int i = 0; i < pixelsToDrawThread4.size(); i += 1)
+	{
+
+
+		glColor3f(pixelsToDrawThread4.at(i)._colour.r, pixelsToDrawThread4.at(i)._colour.g, pixelsToDrawThread4.at(i)._colour.b);
+		glVertex2f(pixelsToDrawThread4.at(i)._vertex1.x, pixelsToDrawThread4.at(i)._vertex1.y);
+		glVertex2f(pixelsToDrawThread4.at(i)._vertex2.x, pixelsToDrawThread4.at(i)._vertex2.y);
+		glVertex2f(pixelsToDrawThread4.at(i)._vertex3.x, pixelsToDrawThread4.at(i)._vertex3.y);
+		glVertex2f(pixelsToDrawThread4.at(i)._vertex4.x, pixelsToDrawThread4.at(i)._vertex4.y);
+	}
+
+    glEnd();
+    glFlush();
+
+	clock_t endTime = clock();
+	clock_t clockTicksTaken = endTime - startTime;
+	double timeInSeconds = clockTicksTaken / (double) CLOCKS_PER_SEC;
+
+	std::cout << "Redrawn in " << timeInSeconds << " seconds" << std::endl;
+}
+
+void rayTrace(std::vector<pixelDraw> &_outputVector, std::vector<Object *> &_sceneObjects, int _x_start, int _y_start, int _x_end, int _y_end, float _pixel_size, int _samplingType, int _numberSamples, bool _run /*= true*/)
+{
+	if (!_run) return;
 
 	float t = 0.0f;
 
-	for(int i = 0; i < widthInPixels; i++)	//Scan every "pixel"
+	float x1, xc, y1, yc;
+
+	for(int i = _x_start; i < _x_end; i++)	//Scan every "pixel"
 	{
-		x1 = XMIN + i*pixelSize;
-		xc = x1 + halfPixelSize;
-		for(int j = 0; j < heightInPixels; j++)
+		x1 = XMIN + i*_pixel_size;
+		xc = x1 + _pixel_size * 0.5f;
+		for(int j = _y_start; j < _y_end; j++)
 		{
-			y1 = YMIN + j*pixelSize;
-			yc = y1 + halfPixelSize;
+			y1 = YMIN + j*_pixel_size;
+			yc = y1 + _pixel_size * 0.5f;
 
 			if (samplingType == SUPER_SAMPLING)
 			{
 				Color col = Color::BLACK;
 
-				for (unsigned int k = 0; k < numsamples; k += 1)
+				for (int k = 0; k < _numberSamples; k += 1)
 				{
-					float xUsed = x1 + ((float)(k)+0.5f) / (float)(numsamples) * pixelSize;
+					float xUsed = x1 + ((float)(k)+0.5f) / (float)(_numberSamples) * _pixel_size;
 
-					for (unsigned int l = 0; l < numsamples; l += 1)
+					for (int l = 0; l < _numberSamples; l += 1)
 					{
-						float yUsed = y1 + ((float)(l)+0.5f) / (float)(numsamples) * pixelSize;
+						float yUsed = y1 + ((float)(l)+0.5f) / (float)(_numberSamples) * _pixel_size;
 
 						Vector dir = Vector(xUsed, yUsed, -EDIST);
 
 						dir.normalise();
 
-						col.combineColor(trace(eyePosition, dir, 1, t, sceneObjects), 1.0f / ((float)(numsamples * numsamples)));
+						col.combineColor(trace(eyePosition, dir, 1, t, _sceneObjects, 1.0f), 1.0f / ((float)(_numberSamples * _numberSamples)));
 					}
 				}
-
-				glColor3f(col.r, col.g, col.b);
-				glVertex2f(x1, y1);				//Draw each pixel with its color value
-				glVertex2f(x1 + pixelSize, y1);
-				glVertex2f(x1 + pixelSize, y1 + pixelSize);
-				glVertex2f(x1, y1 + pixelSize);
+				_outputVector.push_back(pixelDraw());
+				_outputVector.back()._colour = glm::vec3(col.r, col.g, col.b);
+				_outputVector.back()._vertex1 = glm::vec2(x1, y1);
+				_outputVector.back()._vertex2 = glm::vec2(x1 + _pixel_size, y1);
+				_outputVector.back()._vertex3 = glm::vec2(x1 + _pixel_size, y1 + _pixel_size);
+				_outputVector.back()._vertex4 = glm::vec2(x1, y1 + _pixel_size);
 			}
 			else if (samplingType == ADAPTIVE_SAMPLING)
 			{
-				adaptiveSample(xc, yc, pixelSize, pixelSize, 1);
-				if (j == 0)
-				{
-					if (i % (widthInPixels / 20) == 0)
-					{
-						std::cout << 100.0f * (float)(i) / (float)(widthInPixels) << "%" << std::endl;
-					}
-				}
+				adaptiveSample(xc, yc, _pixel_size, _pixel_size, 1, _outputVector, _sceneObjects);
 			}
 			else if (samplingType == STOCHASTIC_SAMPLING)
 			{
 				Color col = Color::BLACK;
 
-				for (unsigned int k = 0; k < numsamples; k += 1)
+				for (int k = 0; k < _numberSamples; k += 1)
 				{
-					float x = x1 + (float)(rand() % 1000) / 1000.0f * pixelSize;
-					float y = y1 + (float)(rand() % 1000) / 1000.0f * pixelSize;
+					float x = x1 + (float)(rand() % 1000) / 1000.0f * _pixel_size;
+					float y = y1 + (float)(rand() % 1000) / 1000.0f * _pixel_size;
 
 					Vector dir = Vector(x, y, -EDIST);
 
 					dir.normalise();
 
-					col.combineColor(trace(eyePosition, dir, 1, t, sceneObjects), 1.0f / ((float)(numsamples)));
+					col.combineColor(trace(eyePosition, dir, 1, t, _sceneObjects, 1.0f), 1.0f / ((float)(_numberSamples)));
 					
 				}
 
-				glColor3f(col.r, col.g, col.b);
-				glVertex2f(x1, y1);				//Draw each pixel with its color value
-				glVertex2f(x1 + pixelSize, y1);
-				glVertex2f(x1 + pixelSize, y1 + pixelSize);
-				glVertex2f(x1, y1 + pixelSize);
+				_outputVector.push_back(pixelDraw());
+				_outputVector.back()._colour = glm::vec3(col.r, col.g, col.b);
+				_outputVector.back()._vertex1 = glm::vec2(x1, y1);
+				_outputVector.back()._vertex2 = glm::vec2(x1 + _pixel_size, y1);
+				_outputVector.back()._vertex3 = glm::vec2(x1 + _pixel_size, y1 + _pixel_size);
+				_outputVector.back()._vertex4 = glm::vec2(x1, y1 + _pixel_size);
 			}
 
-        }
-
-		
-		std::cout << (float)(i) / (float)(widthInPixels)* 100.0f << "%" << std::endl;
-		
+        }	
     }
-
-    glEnd();
-    glFlush();
-
-	std::cout << "Redrawn" << std::endl;
 }
 
 void keyBoard(unsigned char key, int x, int y)
@@ -498,6 +610,16 @@ void keyBoard(unsigned char key, int x, int y)
 		std::cout << "Decreasing color compare threshold: " << colorCompareThreshold << std::endl;
 		glutPostRedisplay();
 	}
+	else if (key == 'o')
+	{
+		numThreads += 1;
+		glutPostRedisplay();
+	}
+	else if (key == 'l')
+	{
+		numThreads -= 1;
+		glutPostRedisplay();
+	}
 	
 }
 
@@ -513,28 +635,38 @@ void initialize()
 
 	loadTGA("tex.tga", texture1);
 	loadTGA("map.tga", texture2);
+	loadTGA("bumpmap.tga", texture3);
 
-	lights.push_back(Vector(0.0f, 10.0f, 100.0f));
+	lights.push_back(Vector(0.0f, 100.0f, 100.0f));
 
 	Sphere *sphere1 = new Sphere(Color::BLUE);
-	sphere1->translate(Vector(0.0f, 10.0f, 0.0f));
-	sphere1->rotate(Vector(0.0, 0.0, 0.0));
-	sphere1->scale(Vector(1.0f, 1.0f, 1.0f));
-	sphere1->setTexture(&texture2);
-	Cube *cube = new Cube(Color::BLUE);
-	//cube->translate(Vector(20.0f, 10.0f, 0.0f));
-	cube->rotate(Vector(45.0f, 45.0f, 45.0f));
-	Plane *plane1 = new Plane(Color(0, 1, 1));
+	sphere1->translate(Vector(15.0f, 8.0f, -10.0f));
+	sphere1->scale(Vector(8.0f, 8.0f, 8.0f));
+	sphere1->setReflective(true);
+
+	Sphere *sphere2= new Sphere(Color::WHITE);
+	sphere2->translate(Vector(0.0f, 15.0f, 10.0f));
+	sphere2->scale(Vector(10.0f, 10.0f, 10.0f));
+	sphere2->setRefractive(true, 1.5f);
+
+
+	Plane *plane1 = new Plane(Color::RED);
+	plane1->scale(Vector(100.0f, 1.0f, 100.0f));
 	plane1->setTexture(&texture1);
-	//plane1->translate(Vector(0.0, -10.0, 0.0));
-	//plane1->scale(Vector(80.0f, 1.0f, 80.0f));
+
+	
 
 
-	sceneObjects.push_back(sphere1);
+	sceneObjectsThread1.push_back(plane1);
+	sceneObjectsThread1.push_back(sphere1);
+	sceneObjectsThread1.push_back(sphere2);
 
-	sceneObjects.push_back(cube);	
-
-	sceneObjects.push_back(plane1);
+	for (unsigned int i = 0; i < sceneObjectsThread1.size(); i += 1)
+	{
+		sceneObjectsThread2.push_back(sceneObjectsThread1.at(i));
+		sceneObjectsThread3.push_back(sceneObjectsThread1.at(i));
+		sceneObjectsThread4.push_back(sceneObjectsThread1.at(i));
+	}
 
 }
 
@@ -545,7 +677,7 @@ int main(int argc, char *argv[])
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB );
     glutInitWindowSize(600, 600);
     glutInitWindowPosition(100, 100);
-    glutCreateWindow("Raytracing");
+    glutCreateWindow("mrd66 COSC363 Assignment 2");
 
 	glutKeyboardFunc(keyBoard);
     glutDisplayFunc(display);

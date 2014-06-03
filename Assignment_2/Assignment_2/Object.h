@@ -28,24 +28,21 @@ protected:
 
 	tex * texture;
 
-	glm::mat4x4 transformation;
 	glm::mat4x4 scaling;
-	glm::mat4x4 translatemat;
+	glm::mat4x4 translation;
 	glm::mat4x4 rotation;
 
 	bool reflective;
 	bool refractive;
+	float refractiveIndex;
 
 	void transformRay(Vector &_RayOrigin, Vector &_RayDirection);
 	void transformNormal(Vector &_Normal);
-	void transformt(float &_t, Vector _originalDirection, Vector _newDirection);
 
 public:
 	Object() :
 	texture(nullptr){
-		transformation = glm::mat4x4(1.0f);
-		scaling = glm::mat4x4(1.0f);
-		translatemat = glm::mat4x4(1.0f);
+		translation = glm::mat4x4(1.0f);
 		rotation = glm::mat4x4(1.0f);
 		reflective = false;
 		refractive = false;
@@ -64,7 +61,7 @@ public:
 
 	void rotate(Vector _angles);
 
-	void scale(Vector _scaleFactors);
+	virtual void scale(Vector _scaleFactors) = 0;
 
 	void setTexture(tex *_tex);
 
@@ -72,6 +69,9 @@ public:
 
 	bool getReflective();
 	bool getRefractive();
+	float getRefractiveIndex();
+	void setReflective(bool _value);
+	void setRefractive(bool _value, float _index);
 };
 
 #endif

@@ -82,7 +82,6 @@ float Cube::intersect(Vector pos, Vector dir)
 		tCube = tnear;
 	}
  
-	transformt(tCube, oldDir, dir);
 
 	return tCube;
 }
@@ -142,4 +141,22 @@ Vector Cube::normal(Vector p)
 Color Cube::getColorTex(Vector _vec)
 {
 	return color;
+}
+
+void Cube::scale(Vector _scaleFactors)
+{
+	scaleFact.x *= _scaleFactors.x;
+	scaleFact.y *= _scaleFactors.y;
+	scaleFact.z *= _scaleFactors.z;
+
+	float xSize = 1.0f * scaleFact.x;
+	float ySize = 1.0f * scaleFact.y;;
+	float zSize = 1.0f * scaleFact.z;;
+
+	corner1 = Vector(-xSize / 2.0f, 
+					 -ySize / 2.0f, 
+					 -zSize / 2.0f);
+	corner2 = Vector(+xSize / 2.0f, 
+					 +ySize / 2.0f, 
+					 +zSize / 2.0f);
 }

@@ -15,6 +15,7 @@ class Color
 public:
     float r, g, b;
 	static const Color WHITE;
+	static const Color YELLOW;
 	static const Color BLACK;
 	static const Color RED;
 	static const Color GREEN;

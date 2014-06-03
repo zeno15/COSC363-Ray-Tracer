@@ -82,3 +82,4 @@ const Color Color::GREEN = Color(0, 1, 0);
 const Color Color::CYAN = Color(0, 1, 1);
 const Color Color::BLUE = Color(0, 0, 1);
 const Color Color::GRAY = Color(0.2f, 0.2f, 0.2f);
+const Color Color::YELLOW = Color(1.0f, 1.0f, 0.2f);

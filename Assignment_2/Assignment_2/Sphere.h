@@ -20,13 +20,18 @@ class Sphere : public Object
 
 private:
     Vector center;
-    float radius;
+	Vector radii;
+
+	Vector scaleFact;
 
 public:		
     Sphere(Color col)
-		: center(Vector()), radius(5.0f)
+		: center(Vector()), radii(Vector(1.0f, 1.0f, 1.0f))
 	{
 		color = col;
+		scaleFact = Vector(1.0f, 1.0f, 1.0f);
+
+		scale(scaleFact);
 	};
 
 	float intersect(Vector pos, Vector dir);
@@ -34,6 +39,8 @@ public:
 	Vector normal(Vector p);
 
 	virtual Color getColorTex(Vector _vec);
+
+	virtual void scale(Vector _scaleFactors);
 
 };
 
