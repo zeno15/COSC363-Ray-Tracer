@@ -27,7 +27,7 @@ bool Plane::isInside(Vector q)
 }
 
 //Function to compute the paramter t at the point of intersection.
-float Plane::intersect(Vector pos, Vector dir)
+float Plane::intersect(Vector pos, Vector dir, float *_tmax /*= nullptr*/)
 {
 	Vector oldDir = dir;
 
@@ -40,6 +40,10 @@ float Plane::intersect(Vector pos, Vector dir)
     float t = vdif.dot(n)/vdotn;
 	if(fabs(t) < 0.0001) return -1;
 	Vector q = pos + dir*t;
+	if (_tmax != nullptr)
+	{
+		*_tmax = -1.0f;
+	}
 	if (isInside(q))
 	{
 		return t;

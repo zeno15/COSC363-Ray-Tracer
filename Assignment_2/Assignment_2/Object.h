@@ -48,7 +48,7 @@ public:
 		refractive = false;
 
 	}
-    virtual float intersect(Vector pos, Vector dir) = 0;
+    virtual float intersect(Vector pos, Vector dir, float *_tmax = nullptr) = 0;
 	virtual Vector normal(Vector pos) = 0;
 	virtual ~Object() {}
 	Color getColor();

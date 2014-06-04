@@ -9,7 +9,7 @@ public:
 	Cylindar(Color _color);
 	~Cylindar();
 
-	float intersect(Vector pos, Vector dir);
+	float intersect(Vector pos, Vector dir, float *_tmax = nullptr);
 
 	Vector normal(Vector p);
 

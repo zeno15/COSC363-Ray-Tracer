@@ -85,25 +85,31 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Color.cpp" />
+    <ClCompile Include="ConstructiveSolidGeometryShape.cpp" />
     <ClCompile Include="Cube.cpp" />
     <ClCompile Include="Cylindar.cpp" />
     <ClCompile Include="loadTGA.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="Plane.cpp" />
+    <ClCompile Include="quarticSolver.cpp" />
     <ClCompile Include="RayTracer.cpp" />
     <ClCompile Include="Sphere.cpp" />
+    <ClCompile Include="Torus.cpp" />
     <ClCompile Include="Vector.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Color.h" />
+    <ClInclude Include="ConstructiveSolidGeometryShape.h" />
     <ClInclude Include="Cube.h" />
     <ClInclude Include="Cylindar.h" />
     <ClInclude Include="loadRAW.h" />
     <ClInclude Include="loadTGA.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="Plane.h" />
+    <ClInclude Include="quarticSolver.h" />
     <ClInclude Include="RayTracer.hpp" />
     <ClInclude Include="Sphere.h" />
+    <ClInclude Include="Torus.h" />
     <ClInclude Include="Vector.h" />
   </ItemGroup>
   <ItemGroup>

@@ -23,7 +23,7 @@ public:
 		scale(Vector(1.0f, 1.0f, 1.0f));
 	};
 
-	float intersect(Vector pos, Vector dir);
+	float intersect(Vector pos, Vector dir, float *_tmax = nullptr);
 
 	Vector normal(Vector p);
 

@@ -13,6 +13,7 @@
 #include "Sphere.h"
 #include "Plane.h"
 #include "Cube.h"
+#include "Torus.h"
 #include "Cylindar.h"
 #include "Color.h"
 #include "Object.h"
@@ -77,6 +78,8 @@ int width, height;
 int numThreads = 1;
 
 char *texdata;
+
+float angle = 0.0f;
 
 
 /*
@@ -214,9 +217,12 @@ Color trace(Vector pos, Vector dir, int step, float &_t, std::vector<Object*> &_
 
 			if (shadow.index == -1) continue;
 
+			if (shadow.index == q.index) continue;				//~ Dont want self shadowing
+
 			if (shadow.dist > q.point.dist(lights.at(i))) continue;
 
 			if (_sceneObjects.at(shadow.index)->getRefractive()) continue; //~ Assuming refractive objects dont leave shadows
+			if (_sceneObjects.at(q.index)->getRefractive()) continue; //~ Assuming refractive objects dont leave shadows
 
 			col = col.phongLight(BACKGROUND_COL, 0.0f, 0.0f);
 		}
@@ -276,6 +282,16 @@ void adaptiveSample(float _cx, float _cy, float _sizeX, float _sizeY, int step, 
 	bool valid = true;
 
 	Vector dir = Vector(_cx, _cy, -EDIST);
+	dir.normalise();
+
+	glm::vec4 rotation = glm::vec4(dir.x, dir.y, dir.z, 1.0f);
+
+	glm::mat4x4 rotationMat = glm::rotate(glm::mat4x4(1.0f), angle, glm::vec3(0.0f, 1.0f, 0.0f));
+
+	rotation = rotationMat * rotation;
+
+	dir = Vector(rotation.x, rotation.y, rotation.z);
+
 	dir.normalise();
 
 	Color col = trace(eyePosition, dir, 1, t, _sceneObjects, 1.0f);
@@ -463,6 +479,16 @@ void rayTrace(std::vector<pixelDraw> &_outputVector, std::vector<Object *> &_sce
 
 						dir.normalise();
 
+						glm::vec4 rotation = glm::vec4(dir.x, dir.y, dir.z, 1.0f);
+
+						glm::mat4x4 rotationMat = glm::rotate(glm::mat4x4(1.0f), angle, glm::vec3(0.0f, 1.0f, 0.0f));
+
+						rotation = rotationMat * rotation;
+
+						dir = Vector(rotation.x, rotation.y, rotation.z);
+
+						dir.normalise();
+
 						col.combineColor(trace(eyePosition, dir, 1, t, _sceneObjects, 1.0f), 1.0f / ((float)(_numberSamples * _numberSamples)));
 					}
 				}
@@ -487,6 +513,16 @@ void rayTrace(std::vector<pixelDraw> &_outputVector, std::vector<Object *> &_sce
 					float y = y1 + (float)(rand() % 1000) / 1000.0f * _pixel_size;
 
 					Vector dir = Vector(x, y, -EDIST);
+
+					dir.normalise();
+
+					glm::vec4 rotation = glm::vec4(dir.x, dir.y, dir.z, 1.0f);
+
+					glm::mat4x4 rotationMat = glm::rotate(glm::mat4x4(1.0f), angle, glm::vec3(0.0f, 1.0f, 0.0f));
+
+					rotation = rotationMat * rotation;
+
+					dir = Vector(rotation.x, rotation.y, rotation.z);
 
 					dir.normalise();
 
@@ -523,25 +559,25 @@ void keyBoard(unsigned char key, int x, int y)
 	else if (key == 'w')
 	{
 		//~ Move camera forward
-		eyePosition += Vector(0.0f, 0.0f, -1.0f);
+		eyePosition += Vector(-sinf(angle * TO_RADIANS), 0.0f, -cosf(angle * TO_RADIANS));
 		glutPostRedisplay();
 	}
 	else if (key == 'a')
 	{
 		//~ Move camera left
-		eyePosition += Vector(-1.0f, 0.0f, 0.0f);
+		eyePosition -= Vector(-sinf((angle - 90.0f) * TO_RADIANS), 0.0f, -cosf((angle - 90.0f) * TO_RADIANS));
 		glutPostRedisplay();
 	}
 	else if (key == 's')
 	{
 		//~ Move camera backward
-		eyePosition += Vector(0.0f, 0.0f, 1.0f);
+		eyePosition -= Vector(-sinf(angle * TO_RADIANS), 0.0f, -cosf(angle * TO_RADIANS));
 		glutPostRedisplay();
 	}
 	else if (key == 'd')
 	{
 		//~ Move camera right
-		eyePosition += Vector(1.0f, 0.0f, 0.0f);
+		eyePosition += Vector(-sinf((angle - 90.0f) * TO_RADIANS), 0.0f, -cosf((angle - 90.0f) * TO_RADIANS));
 		glutPostRedisplay();
 	}
 	else if (key == 'b')
@@ -620,6 +656,26 @@ void keyBoard(unsigned char key, int x, int y)
 		numThreads -= 1;
 		glutPostRedisplay();
 	}
+	else if (key == 'j')
+	{
+		//~ Rotate left
+		angle += 5.0f;
+		if (angle > 360.0f)
+		{
+			angle -= 360.0f;
+		}
+		glutPostRedisplay();
+	}
+	else if (key == 'k')
+	{
+		//~ Rotate right
+		angle -= 5.0f;
+		if (angle < 360.0f)
+		{
+			angle += 360.0f;
+		}
+		glutPostRedisplay();
+	}
 	
 }
 
@@ -636,8 +692,9 @@ void initialize()
 	loadTGA("tex.tga", texture1);
 	loadTGA("map.tga", texture2);
 	loadTGA("bumpmap.tga", texture3);
-
-	lights.push_back(Vector(0.0f, 100.0f, 100.0f));
+	
+	lights.push_back(Vector(100.0f, 100.0f, 100.0f));
+	lights.push_back(Vector(-100.0f, 100.0f, 100.0f));
 
 	Sphere *sphere1 = new Sphere(Color::BLUE);
 	sphere1->translate(Vector(15.0f, 8.0f, -10.0f));
@@ -654,8 +711,10 @@ void initialize()
 	plane1->scale(Vector(100.0f, 1.0f, 100.0f));
 	plane1->setTexture(&texture1);
 
-	
-
+	Torus *t = new Torus(5.0f, 1.0f, Color::RED);
+	t->translate(Vector(-10.0f, 20.0f, 0.0f));
+	t->rotate(Vector(45.0f, 45.0f, 0.0f));
+	sceneObjectsThread1.push_back(t);
 
 	sceneObjectsThread1.push_back(plane1);
 	sceneObjectsThread1.push_back(sphere1);

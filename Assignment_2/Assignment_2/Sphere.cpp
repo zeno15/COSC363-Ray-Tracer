@@ -14,7 +14,7 @@
 /**
 * Sphere's intersection method.  The input is a ray (pos, dir). 
 */
-float Sphere::intersect(Vector pos, Vector dir)
+float Sphere::intersect(Vector pos, Vector dir, float *_tmax /*= nullptr*/)
 {
 	transformRay(pos, dir);
 
@@ -31,7 +31,25 @@ float Sphere::intersect(Vector pos, Vector dir)
 	float t1 = (-b + sqrtf(b * b  - 4.0f * a * c)) / (2.0f * a);
 	float t2 = (-b - sqrtf(b * b  - 4.0f * a * c)) / (2.0f * a);
 
-	return t1 > 0.0f ? (t2 > 0.0f ? (t1 < t2 ? t1 : t2) : -1.0f) : -1.0f;
+	float t = t1 > 0.0f ? (t2 > 0.0f ? (t1 < t2 ? t1 : t2) : -1.0f) : -1.0f;
+
+	if (_tmax != nullptr)
+	{
+		if (t == -1.0f)
+		{
+			*_tmax = -1.0f;
+		}
+		else if (t == t1)
+		{
+			*_tmax = t2;
+		}
+		else if (t == t2)
+		{
+			*_tmax = t1;
+		}
+	}
+
+	return t;
 }
 
 /**

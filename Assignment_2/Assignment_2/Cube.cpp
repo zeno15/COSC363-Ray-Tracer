@@ -9,7 +9,7 @@
 /**
 * Cube's intersection method.  The input is a ray (pos, dir). 
 */
-float Cube::intersect(Vector pos, Vector dir)
+float Cube::intersect(Vector pos, Vector dir, float *_tmax /*= nullptr*/)
 {
 	Vector oldDir = dir;
 
@@ -80,6 +80,10 @@ float Cube::intersect(Vector pos, Vector dir)
 	else
 	{
 		tCube = tnear;
+		if (_tmax != nullptr)
+		{
+			*_tmax = tfar;
+		}
 	}
  
 

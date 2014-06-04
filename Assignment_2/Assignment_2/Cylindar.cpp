@@ -19,7 +19,7 @@ Cylindar::~Cylindar()
 }
 
 
-float Cylindar::intersect(Vector pos, Vector dir)
+float Cylindar::intersect(Vector pos, Vector dir, float *_tmax /*= nullptr*/)
 {
 	transformRay(pos, dir);
 
@@ -44,7 +44,10 @@ float Cylindar::intersect(Vector pos, Vector dir)
 	if (pos.y + dir.y * t < m_Origin.y)
 	{
 		//~ Bottom cap
-		t = -1.0f;
+		if (_tmax != nullptr)
+		{
+			*_tmax = t;
+		}
 
 		float tother = t1 == t ? t2 : t1;
 
@@ -57,7 +60,10 @@ float Cylindar::intersect(Vector pos, Vector dir)
 	else if (pos.y + dir.y * t > m_Origin.y + m_Height)
 	{
 		//~ Top cap
-		t = -1.0f;
+		if (_tmax != nullptr)
+		{
+			*_tmax = t;
+		}
 
 		float tother = t1 == t ? t2 : t1;
 
@@ -65,6 +71,24 @@ float Cylindar::intersect(Vector pos, Vector dir)
 			pos.y + dir.y * tother < m_Origin.y + m_Height)
 		{
 			t = (m_Origin.y + m_Height - pos.y ) / dir.y;
+		}
+	}
+	else
+	{
+		if (_tmax != nullptr)
+		{
+			if (t == -1.0f)
+			{
+				*_tmax = -1.0f;
+			}
+			else if (t == t1)
+			{
+				*_tmax = t2;
+			}
+			else if (t == t2)
+			{
+				*_tmax = t1;
+			}
 		}
 	}
 	
@@ -95,9 +119,7 @@ Vector Cylindar::normal(Vector p)
 		n = n / length;
 	}
 
-	transformNormal(n);
-
-    return n;
+	return n;
 }
 
 Color Cylindar::getColorTex(Vector _vec)
