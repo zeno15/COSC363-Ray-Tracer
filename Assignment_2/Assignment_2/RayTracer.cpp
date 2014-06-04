@@ -243,35 +243,6 @@ Color trace(Vector pos, Vector dir, int step, float &_t, std::vector<Object*> &_
 
 		colorSum.combineColor(reflectionColor, 0.8f);
 	}
-	else if (_sceneObjects.at(q.index)->getRefractive() && step < MAX_STEPS)
-	{
-		float coeffOfTransmission = 0.8f;
-
-		float refractionRatio = _currentRefractiveIndex / _currentRefractiveIndex;
-
-		float cosRefractionAngle = sqrtf(1.0f - std::pow(refractionRatio, 2.0f) * (1.0f - std::pow(dir.dot(n), 2.0f)));
-
-		Vector refractionVector = dir - n * (refractionRatio * dir.dot(n) + cosRefractionAngle) * refractionRatio;
-
-		float t = 0.0f;
-
-		float refractiveIndexToUse = 0.0f;
-
-		if (n.dot(dir) > 0.0f)
-		{
-			refractiveIndexToUse = 1.0f;
-		}
-		else
-		{
-			refractiveIndexToUse = _currentRefractiveIndex;
-		}
-
-		Color refractionColor = trace(q.point, refractionVector, step + 1, t, _sceneObjects, refractiveIndexToUse);
-
-		colorSum.combineColor(refractionColor, coeffOfTransmission);
-	}
-
-	
 
 	return colorSum;
 }
@@ -701,13 +672,13 @@ void initialize()
 	sphere1->scale(Vector(8.0f, 8.0f, 8.0f));
 	sphere1->setReflective(true);
 
-	Sphere *sphere2= new Sphere(Color::WHITE);
+	Sphere *sphere2= new Sphere(Color::CYAN);
 	sphere2->translate(Vector(0.0f, 15.0f, 10.0f));
 	sphere2->scale(Vector(10.0f, 10.0f, 10.0f));
 	sphere2->setRefractive(true, 1.5f);
 
 
-	Plane *plane1 = new Plane(Color::RED);
+	Plane *plane1 = new Plane(Color::BLACK);
 	plane1->scale(Vector(100.0f, 1.0f, 100.0f));
 	plane1->setTexture(&texture1);
 

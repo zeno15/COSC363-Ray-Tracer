@@ -85,7 +85,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Color.cpp" />
-    <ClCompile Include="ConstructiveSolidGeometryShape.cpp" />
     <ClCompile Include="Cube.cpp" />
     <ClCompile Include="Cylindar.cpp" />
     <ClCompile Include="loadTGA.cpp" />
@@ -99,7 +98,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Color.h" />
-    <ClInclude Include="ConstructiveSolidGeometryShape.h" />
     <ClInclude Include="Cube.h" />
     <ClInclude Include="Cylindar.h" />
     <ClInclude Include="loadRAW.h" />

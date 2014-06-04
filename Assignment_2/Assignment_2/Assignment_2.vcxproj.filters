@@ -48,9 +48,6 @@
     <ClCompile Include="quarticSolver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ConstructiveSolidGeometryShape.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Color.h">
@@ -87,9 +84,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="quarticSolver.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ConstructiveSolidGeometryShape.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
