@@ -44,10 +44,7 @@ float Cylindar::intersect(Vector pos, Vector dir, float *_tmax /*= nullptr*/)
 	if (pos.y + dir.y * t < m_Origin.y)
 	{
 		//~ Bottom cap
-		if (_tmax != nullptr)
-		{
-			*_tmax = t;
-		}
+		t = -1.0f;
 
 		float tother = t1 == t ? t2 : t1;
 
@@ -60,10 +57,7 @@ float Cylindar::intersect(Vector pos, Vector dir, float *_tmax /*= nullptr*/)
 	else if (pos.y + dir.y * t > m_Origin.y + m_Height)
 	{
 		//~ Top cap
-		if (_tmax != nullptr)
-		{
-			*_tmax = t;
-		}
+		t = -1.0f;
 
 		float tother = t1 == t ? t2 : t1;
 
@@ -73,24 +67,7 @@ float Cylindar::intersect(Vector pos, Vector dir, float *_tmax /*= nullptr*/)
 			t = (m_Origin.y + m_Height - pos.y ) / dir.y;
 		}
 	}
-	else
-	{
-		if (_tmax != nullptr)
-		{
-			if (t == -1.0f)
-			{
-				*_tmax = -1.0f;
-			}
-			else if (t == t1)
-			{
-				*_tmax = t2;
-			}
-			else if (t == t2)
-			{
-				*_tmax = t1;
-			}
-		}
-	}
+
 	
 
 	return t;

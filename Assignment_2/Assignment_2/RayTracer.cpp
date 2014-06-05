@@ -43,7 +43,18 @@ const float YMAX =  HEIGHT * 0.5f;
 #define ADAPTIVE_SAMPLING	2
 #define STOCHASTIC_SAMPLING 3
 
+#define PRIMITIVE_SCENE		0
+#define TRANSFORM_SCENE		1
+#define TEXTURED_SCENE		2
+#define MULTI_LIGHT_SCENE	3
+#define REFLECTION_SCENE	4
+
 #define MAX_THREADS			4
+#define MAX_OBJECTS			20
+
+#define SCALE				0
+#define ROTATE				1
+#define TRANSLATE			2
 
 std::vector<Object*> sceneObjectsThread1;
 std::vector<Object*> sceneObjectsThread2;
@@ -58,34 +69,29 @@ std::vector<pixelDraw>	pixelsToDrawThread2;
 std::vector<pixelDraw>	pixelsToDrawThread3;
 std::vector<pixelDraw>	pixelsToDrawThread4;
 
-Vector eyePosition = Vector(0.0f, 0.0f, 80.0f);
+Vector eyePosition = Vector(0.0f, 50.0f, 150.0f);
 
 tex texture1;
 tex texture2;
-tex texture3;
 
-
-bool showFog = false;
 
 unsigned int numsamples = 1;
 
 unsigned int samplingType = 0;
+unsigned int sceneNumber = 0;
 
 float colorCompareThreshold = 0.05f;
 
-int width, height;
 
 int numThreads = 1;
 
-char *texdata;
-
 float angle = 0.0f;
 
+Object *transformable = nullptr;
 
-/*
-* This function compares the given ray with all objects in the scene
-* and computes the closest point  of intersection.
-*/
+unsigned int transformModify = SCALE;
+
+
 PointBundle closestPt(Vector pos, Vector dir, std::vector<Object*> &_sceneObjects)
 {
     Vector  point(0, 0, 0);
@@ -93,6 +99,7 @@ PointBundle closestPt(Vector pos, Vector dir, std::vector<Object*> &_sceneObject
 
 	PointBundle out = {point, -1, 0.0};
 
+	
     for(unsigned int i = 0;  i < _sceneObjects.size();  i++)
 	{
         float t = _sceneObjects[i]->intersect(pos, dir);
@@ -111,13 +118,6 @@ PointBundle closestPt(Vector pos, Vector dir, std::vector<Object*> &_sceneObject
 
 	return out;
 }
-
-/*
-* Computes the colour value obtained by tracing a ray.
-* If reflections and refractions are to be included, then secondary rays will 
-* have to be traced from the point, by converting this method to a recursive
-* procedure.
-*/
 
 Color trace(Vector pos, Vector dir, int step, float &_t, std::vector<Object*> &_sceneObjects, float _currentRefractiveIndex)
 {
@@ -316,10 +316,6 @@ void adaptiveSample(float _cx, float _cy, float _sizeX, float _sizeY, int step, 
 	}
 }
 
-//---The main display module -----------------------------------------------------------
-// In a ray tracing application, it just displays the ray traced image by drawing
-// each pixel as quads.
-//---------------------------------------------------------------------------------------
 void display()
 {
 	int widthInPixels = (int)(WIDTH * PPU);
@@ -513,6 +509,311 @@ void rayTrace(std::vector<pixelDraw> &_outputVector, std::vector<Object *> &_sce
     }
 }
 
+void initScene(unsigned int _sceneNumber)
+{
+	for (unsigned int i = 0; i < sceneObjectsThread1.size(); i += 1)
+	{
+		delete sceneObjectsThread1.at(i);
+	}
+
+	sceneObjectsThread1.clear();
+	sceneObjectsThread2.clear();
+	sceneObjectsThread3.clear();
+	sceneObjectsThread4.clear();
+	lights.clear();
+	transformable = nullptr;
+
+	switch (_sceneNumber)
+	{
+	case (4) :
+		sceneObjectsThread1.push_back(new Plane(Color::WHITE));
+		sceneObjectsThread1.back()->scale(Vector(100.0f, 1.0f, 100.0f));
+		sceneObjectsThread1.back()->setTexture(&texture1);
+		sceneObjectsThread1.back()->setReflective(true);
+		
+		sceneObjectsThread1.push_back(new Sphere(Color::BLUE));
+		sceneObjectsThread1.back()->scale(Vector(20.0f, 20.0f, 20.0f));
+		sceneObjectsThread1.back()->translate(Vector(0.0f, 25.0f, 0.0f));
+		sceneObjectsThread1.back()->setReflective(true);
+
+		sceneObjectsThread1.push_back(new Torus(6.0f, 2.0f, Color::GREEN));
+		sceneObjectsThread1.back()->translate(Vector(20.0f, 35.0f, 20.0f));
+
+		sceneObjectsThread1.push_back(new Sphere(Color::GRAY));
+		sceneObjectsThread1.back()->scale(Vector(8.0f, 8.0f, 8.0f));
+		sceneObjectsThread1.back()->translate(Vector(-20.0f, 15.0f, 18.0f));
+
+		lights.push_back(Vector(100.0f, 100.0f, 100.0f));
+		break;
+	case (3) :
+		sceneObjectsThread1.push_back(new Plane(Color::WHITE));
+		sceneObjectsThread1.back()->scale(Vector(100.0f, 1.0f, 100.0f));
+		sceneObjectsThread1.back()->setTexture(&texture1);
+
+		sceneObjectsThread1.push_back(new Sphere(Color::WHITE));
+		sceneObjectsThread1.back()->scale(Vector(20.0f, 20.0f, 20.0f));
+		sceneObjectsThread1.back()->setTexture(&texture2);
+		sceneObjectsThread1.back()->translate(Vector(0.0f, 25.0f, 0.0f));
+
+		lights.push_back(Vector(100.0f, 100.0f, 100.0f));
+		break;
+	case (2) :
+		sceneObjectsThread1.push_back(new Plane(Color::WHITE));
+		sceneObjectsThread1.back()->scale(Vector(100.0f, 1.0f, 100.0f));
+		sceneObjectsThread1.back()->setTexture(&texture1);
+		
+		sceneObjectsThread1.push_back(new Sphere(Color::BLUE));
+		sceneObjectsThread1.back()->scale(Vector(10.0f, 10.0f, 10.0f));
+		sceneObjectsThread1.back()->translate(Vector(0.0f, 30.0f, 30.0f));
+
+		sceneObjectsThread1.push_back(new Cube(Color::CYAN));
+		sceneObjectsThread1.back()->scale(Vector(15.0f, 15.0f, 15.0f));
+		sceneObjectsThread1.back()->translate(Vector(-25.0f, 15.0f, 25.0f));
+		sceneObjectsThread1.back()->rotate(Vector(45.0f, 45.0f, 45.0f));
+
+		lights.push_back(Vector(100.0f, 100.0f, 100.0f));
+		lights.push_back(Vector(0.0f, 100.0f, 100.0f));
+		lights.push_back(Vector(-100.0f, 100.0f, 100.0f));
+
+		break;
+	case (1) :
+		sceneObjectsThread1.push_back(new Sphere(Color::RED));
+		sceneObjectsThread1.back()->scale(Vector(20.0f, 20.0f, 20.0f));
+		transformable = sceneObjectsThread1.back();
+
+		lights.push_back(Vector(100.0f, 100.0f, 100.0f));
+		break;
+	default:
+		Plane *plane = new Plane(Color::RED);
+		plane->scale(Vector(100.0f, 1.0f, 100.0f));
+
+		Sphere *sphere = new Sphere(Color::YELLOW);
+		sphere->scale(Vector(10.0f, 10.0f, 10.0f));
+		sphere->translate(Vector(25.0f, 15.0f, -10.0f));
+
+		Cube *cube = new Cube(Color::CYAN);
+		cube->scale(Vector(20.0f, 16.0f, 30.0f));
+		cube->translate(Vector(-25.0f, 10.0f, 0.0f));
+
+		Torus *torus = new Torus(10.0f, 4.0f, Color::GREEN);
+		torus->translate(Vector(0.0f, 25.0f, 2.0f));
+
+		Cylindar *cylindar = new Cylindar(Color::BLUE);
+		cylindar->translate(Vector(0.0f, 10.0f, 25.0f));
+		cylindar->scale(Vector(5.0f, 10.0f, 5.0f));
+
+		sceneObjectsThread1.push_back(plane);
+		sceneObjectsThread1.push_back(sphere);
+		sceneObjectsThread1.push_back(cube);
+		sceneObjectsThread1.push_back(torus);
+		sceneObjectsThread1.push_back(cylindar);
+		lights.push_back(Vector(100.0f, 100.0f, 100.0f));
+		break;
+	}
+
+	for (unsigned int i = 0; i < sceneObjectsThread1.size(); i += 1)
+	{
+		sceneObjectsThread2.push_back(sceneObjectsThread1.at(i));
+		sceneObjectsThread3.push_back(sceneObjectsThread1.at(i));
+		sceneObjectsThread4.push_back(sceneObjectsThread1.at(i));
+	}
+
+	angle = 0.0f;
+	eyePosition = Vector(0.0f, 50.0f, 150.0f);
+}
+
+void special(int key, int x, int y)
+{
+	if (transformable != nullptr)
+	{
+		if (key == GLUT_KEY_F1)
+		{
+			transformModify = SCALE;
+		}
+		else if (key == GLUT_KEY_F2)
+		{
+			transformModify = ROTATE;
+		}
+		else if (key == GLUT_KEY_F3)
+		{
+			transformModify = TRANSLATE;
+		}
+		else if (key == GLUT_KEY_F4)
+		{
+			delete transformable;
+			transformable = new Torus(20.0f, 8.0f, Color::RED);
+
+			sceneObjectsThread1.clear();
+			sceneObjectsThread2.clear();
+			sceneObjectsThread3.clear();
+			sceneObjectsThread4.clear();
+
+			sceneObjectsThread1.push_back(transformable);
+			sceneObjectsThread2.push_back(transformable);
+			sceneObjectsThread3.push_back(transformable);
+			sceneObjectsThread4.push_back(transformable);
+
+			glutPostRedisplay();
+		}
+		else if (key == GLUT_KEY_F5)
+		{
+			delete transformable;
+			transformable = new Sphere(Color::RED);
+			transformable->scale(Vector(20.0f, 20.0f, 20.0f));
+
+			sceneObjectsThread1.clear();
+			sceneObjectsThread2.clear();
+			sceneObjectsThread3.clear();
+			sceneObjectsThread4.clear();
+
+			sceneObjectsThread1.push_back(transformable);
+			sceneObjectsThread2.push_back(transformable);
+			sceneObjectsThread3.push_back(transformable);
+			sceneObjectsThread4.push_back(transformable);
+
+			glutPostRedisplay();
+		}
+		else if (key == GLUT_KEY_F6)
+		{
+			delete transformable;
+			transformable = new Cube(Color::RED);
+			transformable->scale(Vector(20.0f, 20.0f, 20.0f));
+
+			sceneObjectsThread1.clear();
+			sceneObjectsThread2.clear();
+			sceneObjectsThread3.clear();
+			sceneObjectsThread4.clear();
+
+			sceneObjectsThread1.push_back(transformable);
+			sceneObjectsThread2.push_back(transformable);
+			sceneObjectsThread3.push_back(transformable);
+			sceneObjectsThread4.push_back(transformable);
+
+			glutPostRedisplay();
+		}
+		else if (key == GLUT_KEY_F7)
+		{
+			delete transformable;
+			transformable = new Cylindar(Color::RED);
+			transformable->scale(Vector(5.0f, 5.0f, 20.0f));
+
+			sceneObjectsThread1.clear();
+			sceneObjectsThread2.clear();
+			sceneObjectsThread3.clear();
+			sceneObjectsThread4.clear();
+
+			sceneObjectsThread1.push_back(transformable);
+			sceneObjectsThread2.push_back(transformable);
+			sceneObjectsThread3.push_back(transformable);
+			sceneObjectsThread4.push_back(transformable);
+
+			glutPostRedisplay();
+		}
+		else if (key == GLUT_KEY_LEFT)
+		{
+			if (transformModify == SCALE)
+			{
+				transformable->scale(Vector(0.9f, 1.0f, 1.0f));
+			}
+			else if (transformModify == ROTATE)
+			{
+				transformable->rotate(Vector(0.0f, 5.0f, 0.0f));
+			}
+			else if (transformModify == TRANSLATE)
+			{
+				transformable->translate(Vector(-1.0f, 0.0f, 0.0f));
+			}
+
+			glutPostRedisplay();
+		}
+		else if (key == GLUT_KEY_RIGHT)
+		{
+			if (transformModify == SCALE)
+			{
+				transformable->scale(Vector(1.1f, 1.0f, 1.0f));
+			}
+			else if (transformModify == ROTATE)
+			{
+				transformable->rotate(Vector(0.0f, -5.0f, 0.0f));
+			}
+			else if (transformModify == TRANSLATE)
+			{
+				transformable->translate(Vector(1.0f, 0.0f, 0.0f));
+			}
+
+			glutPostRedisplay();
+		}
+		else if (key == GLUT_KEY_UP)
+		{
+			if (transformModify == SCALE)
+			{
+				transformable->scale(Vector(1.0f, 1.0f, 0.9f));
+			}
+			else if (transformModify == ROTATE)
+			{
+				transformable->rotate(Vector(5.0f, 0.0f, 0.0f));
+			}
+			else if (transformModify == TRANSLATE)
+			{
+				transformable->translate(Vector(0.0f, 0.0f, -1.0f));
+			}
+
+			glutPostRedisplay();
+		}
+		else if (key == GLUT_KEY_DOWN)
+		{
+			if (transformModify == SCALE)
+			{
+				transformable->scale(Vector(1.0f, 1.0f, 1.1f));
+			}
+			else if (transformModify == ROTATE)
+			{
+				transformable->rotate(Vector(-5.0f, 0.0f, 0.0f));
+			}
+			else if (transformModify == TRANSLATE)
+			{
+				transformable->translate(Vector(0.0f, 0.0f, 1.0f));
+			}
+
+			glutPostRedisplay();
+		}
+		else if (key == GLUT_KEY_PAGE_UP)
+		{
+			if (transformModify == SCALE)
+			{
+				transformable->scale(Vector(1.0f, 1.1f, 1.0f));
+			}
+			else if (transformModify == ROTATE)
+			{
+				transformable->rotate(Vector(0.0f, 0.0f, -5.0f));
+			}
+			else if (transformModify == TRANSLATE)
+			{
+				transformable->translate(Vector(0.0f, 1.0f, 0.0f));
+			}
+
+			glutPostRedisplay();
+		}
+		else if (key == GLUT_KEY_PAGE_DOWN)
+		{
+			if (transformModify == SCALE)
+			{
+				transformable->scale(Vector(1.0f, 0.9f, 1.0f));
+			}
+			else if (transformModify == ROTATE)
+			{
+				transformable->rotate(Vector(0.0f, 0.0f, 5.0f));
+			}
+			else if (transformModify == TRANSLATE)
+			{
+				transformable->translate(Vector(0.0f, -1.0f, 0.0f));
+			}
+
+			glutPostRedisplay();
+		}
+	}
+}
+
 void keyBoard(unsigned char key, int x, int y)
 {
 	if (key == 'q')
@@ -551,12 +852,6 @@ void keyBoard(unsigned char key, int x, int y)
 		eyePosition += Vector(-sinf((angle - 90.0f) * TO_RADIANS), 0.0f, -cosf((angle - 90.0f) * TO_RADIANS));
 		glutPostRedisplay();
 	}
-	else if (key == 'b')
-	{
-		std::cout << "Toggling fog/smoke" << std::endl;
-		showFog = !showFog;
-		glutPostRedisplay(); 
-	}
 	else if (key == 'z')
 	{
 		numsamples = numsamples > 1 ? numsamples - 1 : numsamples;
@@ -581,41 +876,29 @@ void keyBoard(unsigned char key, int x, int y)
 		glutPostRedisplay(); 
 		std::cout << "ppu: " << PPU << std::endl;
 	}
-	else if (key == '0')
+	else if (key == 'r')
 	{
 		samplingType = 0;
 		std::cout << "Normal sampling" << std::endl;
 		glutPostRedisplay(); 
 	}
-	else if (key == '1')
+	else if (key == 't')
 	{
 		samplingType = 1;
 		std::cout << "Super sampling" << std::endl;
 		glutPostRedisplay(); 
 	}
-	else if (key == '2')
+	else if (key == 'y')
 	{
 		samplingType = 2;
 		std::cout << "adaptive sampling" << std::endl;
 		glutPostRedisplay(); 
 	}
-	else if (key == '3')
+	else if (key == 'u')
 	{
 		samplingType = 3;
 		std::cout << "stochastic sampling" << std::endl;
 		glutPostRedisplay(); 
-	}
-	else if (key == 'r')
-	{
-		colorCompareThreshold *= 10.0f;
-		std::cout << "Increasing color compare threshold: " << colorCompareThreshold << std::endl;
-		glutPostRedisplay();
-	}
-	else if (key == 't')
-	{
-		colorCompareThreshold /= 10.0f;
-		std::cout << "Decreasing color compare threshold: " << colorCompareThreshold << std::endl;
-		glutPostRedisplay();
 	}
 	else if (key == 'o')
 	{
@@ -647,6 +930,41 @@ void keyBoard(unsigned char key, int x, int y)
 		}
 		glutPostRedisplay();
 	}
+	else if (key == '1')
+	{
+		//~ Primitive scene
+		sceneNumber = 0;
+		initScene(sceneNumber);
+		glutPostRedisplay();
+	}
+	else if (key == '2')
+	{
+		//~ Transform scene
+		sceneNumber = 1;
+		initScene(sceneNumber);
+		glutPostRedisplay();
+	}
+	else if (key == '3')
+	{
+		//~ Textured scene
+		sceneNumber = 2;
+		initScene(sceneNumber);
+		glutPostRedisplay();
+	}
+	else if (key == '4')
+	{
+		//~ Multi light scene
+		sceneNumber = 3;
+		initScene(sceneNumber);
+		glutPostRedisplay();
+	}
+	else if (key == '5')
+	{
+		//~ reflection scene
+		sceneNumber = 4;
+		initScene(sceneNumber);
+		glutPostRedisplay();
+	}
 	
 }
 
@@ -662,42 +980,8 @@ void initialize()
 
 	loadTGA("tex.tga", texture1);
 	loadTGA("map.tga", texture2);
-	loadTGA("bumpmap.tga", texture3);
-	
-	lights.push_back(Vector(100.0f, 100.0f, 100.0f));
-	lights.push_back(Vector(-100.0f, 100.0f, 100.0f));
 
-	Sphere *sphere1 = new Sphere(Color::BLUE);
-	sphere1->translate(Vector(15.0f, 8.0f, -10.0f));
-	sphere1->scale(Vector(8.0f, 8.0f, 8.0f));
-	sphere1->setReflective(true);
-
-	Sphere *sphere2= new Sphere(Color::CYAN);
-	sphere2->translate(Vector(0.0f, 15.0f, 10.0f));
-	sphere2->scale(Vector(10.0f, 10.0f, 10.0f));
-	sphere2->setRefractive(true, 1.5f);
-
-
-	Plane *plane1 = new Plane(Color::BLACK);
-	plane1->scale(Vector(100.0f, 1.0f, 100.0f));
-	plane1->setTexture(&texture1);
-
-	Torus *t = new Torus(5.0f, 1.0f, Color::RED);
-	t->translate(Vector(-10.0f, 20.0f, 0.0f));
-	t->rotate(Vector(45.0f, 45.0f, 0.0f));
-	sceneObjectsThread1.push_back(t);
-
-	sceneObjectsThread1.push_back(plane1);
-	sceneObjectsThread1.push_back(sphere1);
-	sceneObjectsThread1.push_back(sphere2);
-
-	for (unsigned int i = 0; i < sceneObjectsThread1.size(); i += 1)
-	{
-		sceneObjectsThread2.push_back(sceneObjectsThread1.at(i));
-		sceneObjectsThread3.push_back(sceneObjectsThread1.at(i));
-		sceneObjectsThread4.push_back(sceneObjectsThread1.at(i));
-	}
-
+	initScene(sceneNumber);
 }
 
 
@@ -711,6 +995,7 @@ int main(int argc, char *argv[])
 
 	glutKeyboardFunc(keyBoard);
     glutDisplayFunc(display);
+	glutSpecialFunc(special);
     initialize();
 
     glutMainLoop();
